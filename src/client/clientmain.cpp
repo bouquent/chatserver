@@ -74,7 +74,13 @@ int main(int argc, char **argv)
         cout << "choice: ";
         int choice = 0;
         cin >> choice;
-        cin.get(); //读取缓冲区中剩余的换行符
+        if (cin.fail()) {  
+            //防止输入字母导致的无限循环
+            choice = 0;
+            cin.clear();
+            cin.sync();
+        }
+        cin.get(); //读取缓冲区中剩余的字符
 
         switch (choice) {
 
