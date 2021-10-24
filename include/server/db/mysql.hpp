@@ -23,7 +23,7 @@ public:
     //查询操作
     MYSQL_RES* query(const string& sql);
 
-    MYSQL* getConnection() {return conn_;}
+    MYSQL* getConnection() { return conn_; }
 private:
     MYSQL *conn_;
 };
