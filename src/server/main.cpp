@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 
     server.start();
 
-    //开启mainloop时间循环
+    //开启mainloop事件循环
     loop.loop();
     return  0;
 }

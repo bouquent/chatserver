@@ -31,7 +31,7 @@ bool MySql::connect()
     }
     else {
         // c/c++默认使用assic码进行编制，如果不设置，从数据库拉取得中文可能编程乱码
-        LOG_INFO << "connect the databases success!\n";
+        // LOG_INFO << "connect the databases success!\n";
         mysql_query(conn_, "set names gbk");
     }
     return p;

@@ -37,10 +37,14 @@ void showCurrentUserData();
 
 //除了主线程之外的一个接受线程, 让接受和发送消息并行处理
 void* readTaskHandler(void* clientfd);
+void* sendHeartPacket(void* clientfd);
 //获取系统时间
 string getCurrentTime();
 //主聊天页面
 void mainMenu(int sockfd);
+
+//判断用户是否下线
+int stop_client = 1;
 
 
 int main(int argc, char **argv)
@@ -114,6 +118,8 @@ int main(int argc, char **argv)
                 std::cerr << responsejs["errmsg"] << std::endl;
                 break;
             } else {  //登陆成功
+                stop_client = 0;
+
                 g_currentUser.setId(responsejs["id"]);
                 g_currentUser.setName(responsejs["name"]);
 
@@ -182,6 +188,12 @@ int main(int argc, char **argv)
             int ret = pthread_create(&tid, NULL, readTaskHandler, (void*) &sockfd);
             assert(ret == 0);
             pthread_detach(tid);
+
+            //开启一个线程，用于发送心跳包
+            pthread_t tid2;
+            ret = pthread_create(&tid, NULL, sendHeartPacket, (void*) &sockfd);
+            assert(ret == 0);
+            pthread_detach(tid2);
 
             //进入聊天主菜单页面
             mainMenu(sockfd);
@@ -269,7 +281,7 @@ void* readTaskHandler(void *fd)
 {
     int sockfd = (*(int*)fd);
 
-    while (1) {
+    while (!stop_client) {
         char buffer[1024] = {0};
         int len = recv(sockfd, buffer, sizeof(buffer), 0);
         if (len == -1) {
@@ -285,12 +297,33 @@ void* readTaskHandler(void *fd)
             std::cout << "群消息 ["<< js["groupid"].get<int>() << "] " << js["time"].get<string>() << "[" << js["id"].get<int>() << "] "
                     << js["name"].get<string>() << " said: " << js["msg"].get<string>() << std::endl; 
             continue;
-        } else if (LOGINOUT_MSG == js["msgid"].get<int>()) {  //用户注销，结束接受线程
-            break;
+        } else if (LOGINOUT_MSG == js["msgid"].get<int>()) {  
+            //用户注销，客户端线程结束
+            stop_client = 1;
         }
     }
     return nullptr;
 }
+
+//用于发送心跳包的线程
+void* sendHeartPacket(void* clientfd)
+{
+    int sockfd = (*(int*)clientfd);
+    while (!stop_client) {
+        json js;
+        js["msgid"] = HEART_MSG;
+        string heartPaket = js.dump();
+        int ret = send(sockfd, heartPaket.c_str(), heartPaket.size(), 0);
+        if (ret == -1) {
+            std::cerr << "sendHeartPacket send wrong!" << std::endl;
+        }
+        sleep(180); //每次发送间隔为三分钟
+    }
+
+    return nullptr;
+}
+
+
 //获取系统时间
 string getCurrentTime()
 {

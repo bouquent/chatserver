@@ -41,6 +41,8 @@ public:
     void groupChat(const TcpConnectionPtr &conn, json &js, Timestamp time);
     //处理注销业务
     void loginout(const TcpConnectionPtr &conn, json &js, Timestamp time);
+    //获取了心跳包
+    void heartbeat(const TcpConnectionPtr &conn, json &js, Timestamp time);
 
     //从redis的消息队列中获得了消息
     void handleRedisSubscribeMessage(int userid, std::string msg);
@@ -51,6 +53,9 @@ public:
     void clientCloseException(const TcpConnectionPtr& conn);
     //处理服务器异常退出
     void serverCloseException();
+
+    //心跳测试，删除心跳测试失败的用户;
+    void heartTest();
 private:
     ChatService();
 
@@ -64,6 +69,7 @@ private:
 
     std::unordered_map<int, MsgHandler> msgHandlerMap_;
 
+    std::unordered_map<TcpConnectionPtr, int> heartMap_;
     std::unordered_map<int, TcpConnectionPtr> userConnMap_;
     std::mutex connMutex_; //保证userConnMap_线程安全
 };

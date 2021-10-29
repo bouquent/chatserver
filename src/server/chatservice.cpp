@@ -36,6 +36,9 @@ ChatService::ChatService()
     
     msgHandlerMap_.insert({GROUP_CHAT_MSG, std::bind(&ChatService::groupChat, this, _1, _2, _3)}); 
 
+    //心跳机制
+    msgHandlerMap_.insert({HEART_MSG, std::bind(&ChatService::heartbeat, this, _1, _2, _3)});
+
     //连接redis服务器
     if (redis_.connect()) {
         redis_.init_notify_handler(std::bind(&ChatService::handleRedisSubscribeMessage, this, _1, _2));
@@ -58,8 +61,10 @@ ChatService::ChatService()
 //处理登录业务
 void ChatService::login(const TcpConnectionPtr &conn, json &js, Timestamp time)
 {
-    int id = js["id"].get<int>();
+    //心跳计数清零
+    heartMap_[conn] = 0;
 
+    int id = js["id"].get<int>();
     string pwd = js["password"].get<string>();
 
     User user = usermodel_.query(id);
@@ -81,6 +86,7 @@ void ChatService::login(const TcpConnectionPtr &conn, json &js, Timestamp time)
             {
                 std::lock_guard<std::mutex> lock(connMutex_); 
                 userConnMap_.insert({user.getId(), conn});
+                heartMap_.insert({conn, 0});
             }
             //向redis订阅channel(id)
             redis_.subscribe(user.getId());
@@ -151,6 +157,9 @@ void ChatService::login(const TcpConnectionPtr &conn, json &js, Timestamp time)
 //处理注册业务
 void ChatService::reg(const TcpConnectionPtr &conn, json &js, Timestamp time)
 {
+    //心跳计数清零
+    heartMap_[conn] = 0;
+
     string name = js["name"].get<string>();
     string pwd =  js["password"].get<string>();
 
@@ -178,6 +187,9 @@ void ChatService::reg(const TcpConnectionPtr &conn, json &js, Timestamp time)
 //发送消息业务
 void ChatService::oneChat(const TcpConnectionPtr &conn, json &js, Timestamp time)
 {
+    //心跳计数清零
+    heartMap_[conn] = 0;
+
     //获取双方用户id值
     int id = js["id"].get<int>();
     int toid = js["toid"].get<int>();
@@ -206,6 +218,9 @@ void ChatService::oneChat(const TcpConnectionPtr &conn, json &js, Timestamp time
 //添加好友业务
 void ChatService::addFriend(const TcpConnectionPtr &conn, json &js, Timestamp time)
 {
+    //心跳计数清零
+    heartMap_[conn] = 0;
+
     int friendid = js["friendid"].get<int>();   
     int id = js["id"].get<int>();
     json response;
@@ -228,6 +243,9 @@ void ChatService::addFriend(const TcpConnectionPtr &conn, json &js, Timestamp ti
 //创建群组业务
 void ChatService::createGroup(const TcpConnectionPtr &conn, json &js, Timestamp time)
 {
+    //心跳计数清零
+    heartMap_[conn] = 0;
+
     int userid = js["id"].get<int>();   //创建群聊的用户
     string name = js["groupname"].get<string>();
     string desc = js["groupdesc"].get<string>();
@@ -242,6 +260,9 @@ void ChatService::createGroup(const TcpConnectionPtr &conn, json &js, Timestamp 
 //加入群组业务
 void ChatService::addGroup(const TcpConnectionPtr &conn, json &js, Timestamp time)
 {
+    //心跳计数清零
+    heartMap_[conn] = 0;
+
     int userid = js["id"].get<int>();
     int groupid = js["groupid"].get<int>();
     groupmodel_.addGroup(userid, groupid, "normal");
@@ -250,6 +271,9 @@ void ChatService::addGroup(const TcpConnectionPtr &conn, json &js, Timestamp tim
 //群组聊天业务
 void ChatService::groupChat(const TcpConnectionPtr &conn, json &js, Timestamp time)
 {
+    //心跳计数清零
+    heartMap_[conn] = 0;
+
     int userid = js["id"].get<int>();
     int groupid = js["groupid"].get<int>();
     vector<int> uservec = groupmodel_.queryGroups(userid, groupid);
@@ -305,6 +329,13 @@ void ChatService::loginout(const TcpConnectionPtr &conn, json &js, Timestamp tim
     }
 }
 
+//获取了用户的心跳包
+void  ChatService::heartbeat(const TcpConnectionPtr& conn, json &js, Timestamp time)
+{
+    //心跳计数清零
+    heartMap_[conn] = 0;
+    std::cout << "revice a hearbeat package!\n";
+}
 
 //处理客户端异常退出
 void ChatService::clientCloseException(const TcpConnectionPtr& conn)
@@ -351,5 +382,21 @@ void ChatService::handleRedisSubscribeMessage(int userid, string msg)
 
     //该用户下线了，存储离线消息
     offlineMessage_.insert(userid, msg);
-    
+}
+
+
+//心跳测试，与心跳测试失败的业务断开连接
+void ChatService::heartTest()
+{
+    for (auto iter = heartMap_.begin(); iter != heartMap_.end(); ) {
+        if (++iter->second == 3) {
+            /*连续三次没有发送心跳包和消息的用户定义为断开连接*/
+            iter->first->shutdown(); 
+            this->clientCloseException(iter->first);
+            iter = heartMap_.erase(iter);
+            std::cout << "one client disconnect!\n";
+            continue;
+        }
+        iter++; //这样设计是为了解决迭代器失效问题
+    }
 }

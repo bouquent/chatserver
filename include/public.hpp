@@ -20,6 +20,8 @@ enum EnMsgType
     GROUP_CHAT_MSG,   //群聊天
 
     LOGINOUT_MSG, //注销消息
-    ELSE_MSG,
+    ELSE_MSG,    //其他消息
+
+    HEART_MSG, //心跳消息
 };
 #endif

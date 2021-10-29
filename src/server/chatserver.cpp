@@ -3,9 +3,22 @@
 #include "json.hpp"
 #include <functional>
 #include <iostream>
+#include <signal.h>
 
 using namespace std::placeholders;
 using json = nlohmann::json;
+
+#define ALRM_TIME 180 //每三分钟一次的心跳检测
+
+
+//用于心跳检测的定时任务
+void alarmhandler(int signal)
+{
+    /*根据检测结果，关闭没有通过检测的用户的连接*/
+    ChatService::instance()->heartTest();
+
+    alarm(ALRM_TIME); //重新设置定时任务
+}
 
 ChatServer::ChatServer(EventLoop *loop,
                     const InetAddress& listenAddr,
@@ -27,6 +40,8 @@ ChatServer::ChatServer(EventLoop *loop,
 void ChatServer::start()
 {
     server_.start();
+    signal(SIGALRM, alarmhandler);
+    alarm(ALRM_TIME);
 }
 
 //上报的连接事件
@@ -46,7 +61,6 @@ void ChatServer::onMessage(const TcpConnectionPtr& conn, Buffer *buffer, Timesta
 
     //数据的反序列化
     json js = json::parse(buf);
-
 
     //达到的目的，解耦网络模块和业务模块的代码
     //通过js[msgid]获取业务类型，然后执行相应的回调函数handler

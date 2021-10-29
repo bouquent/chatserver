@@ -19,6 +19,7 @@ public:
 
     //启动服务
     void start();
+
 private:
     //上报连接信息的回调函数
     void onConnection(const TcpConnectionPtr &conn);
