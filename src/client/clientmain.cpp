@@ -44,7 +44,7 @@ string getCurrentTime();
 void mainMenu(int sockfd);
 
 //判断用户是否下线
-int stop_client = 1;
+int client_offline = 0;
 
 
 int main(int argc, char **argv)
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
                 std::cerr << responsejs["errmsg"] << std::endl;
                 break;
             } else {  //登陆成功
-                stop_client = 0;
+                client_offline = 0;
 
                 g_currentUser.setId(responsejs["id"]);
                 g_currentUser.setName(responsejs["name"]);
@@ -281,7 +281,7 @@ void* readTaskHandler(void *fd)
 {
     int sockfd = (*(int*)fd);
 
-    while (!stop_client) {
+    while (!client_offline) {
         char buffer[1024] = {0};
         int len = recv(sockfd, buffer, sizeof(buffer), 0);
         if (len == -1) {
@@ -299,7 +299,7 @@ void* readTaskHandler(void *fd)
             continue;
         } else if (LOGINOUT_MSG == js["msgid"].get<int>()) {  
             //用户注销，客户端线程结束
-            stop_client = 1;
+            client_offline = 1;
         }
     }
     return nullptr;
@@ -309,7 +309,7 @@ void* readTaskHandler(void *fd)
 void* sendHeartPacket(void* clientfd)
 {
     int sockfd = (*(int*)clientfd);
-    while (!stop_client) {
+    while (!client_offline) {
         json js;
         js["msgid"] = HEART_MSG;
         string heartPaket = js.dump();
