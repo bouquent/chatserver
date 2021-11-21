@@ -58,6 +58,7 @@ bool Redis::publish(int channel, std::string message)
 
 bool Redis::subscribe(int channel)
 {
+      /*直接发送subscribe命令会导致当前线程阻塞*/
     if (REDIS_ERR == redisAppendCommand(subcribe_context_, "subscribe %d", channel)) {
         std::cerr << "subscribe command failed!" << std::endl;
         return false;
@@ -103,7 +104,6 @@ void Redis::observer_channel_message()
     }
     freeReplyObject(reply);
     std::cerr << ">>>>>>>>>>>>>>>> observer_channel_message quit <<<<<<<<<<<<<<<<<<<<<" << std::endl;
-
 }
 
 //设置为上层服务的回调函数

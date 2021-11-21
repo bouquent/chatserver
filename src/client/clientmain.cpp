@@ -287,6 +287,10 @@ void* readTaskHandler(void *fd)
         if (len == -1) {
             std::cerr << "recv error" << std::endl;
         }
+        if (len == 0) {
+            std::cout << "server close" << std::endl;
+            exit(1);
+        }
 
         json js = json::parse(buffer);
         if (ONE_CHAT_MSG == js["msgid"].get<int>()) {   //个人消息

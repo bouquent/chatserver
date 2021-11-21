@@ -4,6 +4,7 @@
 #include "public.hpp"
 #include <muduo/net/TcpServer.h>
 #include <muduo/net/EventLoop.h>
+#include <muduo/net/TcpConnection.h>
 using namespace muduo;
 using namespace muduo::net;
 

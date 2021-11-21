@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 
     signal(SIGINT, resethandler);
     EventLoop loop;
-    InetAddress listenAddr("127.0.0.1", atoi(argv[1]));
+    InetAddress listenAddr("0.0.0.0", atoi(argv[1]));
     ChatServer server(&loop, listenAddr, "czz");
 
     server.start();
